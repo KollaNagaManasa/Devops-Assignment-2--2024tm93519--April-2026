@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACEest Fitness & Gym - DevOps Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <main class="container">
+        <header class="card hero">
+            <h1>ACEest Fitness & Gym</h1>
+            <p>DevOps CI/CD Assignment Dashboard</p>
+        </header>
+
+        <section class="grid">
+            <article class="card">
+                <h2>Service Health</h2>
+                <p id="health">Checking...</p>
+            </article>
+
+            <article class="card">
+                <h2>Application Info</h2>
+                <p><strong>Name:</strong> ACEest Fitness & Gym</p>
+                <p><strong>Status:</strong> Running</p>
+                <p><strong>Pipeline:</strong> Jenkins + Docker + Kubernetes</p>
+            </article>
+        </section>
+
+        <section class="card">
+            <h2>Uploaded ACEest Versions</h2>
+            <ul id="versions"></ul>
+        </section>
+    </main>
+
+    <script>
+        async function loadDashboard() {
+            const healthEl = document.getElementById("health");
+            const versionsEl = document.getElementById("versions");
+
+            try {
+                const healthRes = await fetch("/health");
+                const healthData = await healthRes.json();
+                healthEl.textContent = healthData.health === "ok" ? "Healthy" : "Unhealthy";
+
+                const versionRes = await fetch("/versions");
+                const versionData = await versionRes.json();
+                versionsEl.innerHTML = "";
+                versionData.versions.forEach((item) => {
+                    const li = document.createElement("li");
+                    li.textContent = item;
+                    versionsEl.appendChild(li);
+                });
+            } catch (err) {
+                healthEl.textContent = "Error loading data";
+                versionsEl.innerHTML = "<li>Unable to fetch version data</li>";
+            }
+        }
+
+        loadDashboard();
+    </script>
+</body>
+</html>
