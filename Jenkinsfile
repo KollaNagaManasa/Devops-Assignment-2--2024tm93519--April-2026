@@ -7,6 +7,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
@@ -26,6 +27,7 @@ pipeline {
             }
         }
 
+        // OPTIONAL: Comment if SonarQube not configured
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
@@ -63,10 +65,22 @@ pipeline {
             }
         }
 
+        stage('Apply Kubernetes Config') {
+            steps {
+                sh 'kubectl apply -f k8s/rolling/'
+            }
+        }
+
         stage('Deploy Rolling Update') {
             steps {
                 sh 'kubectl set image deployment/aceest-fitness aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest || true'
                 sh 'kubectl rollout status deployment/aceest-fitness -n aceest || true'
+            }
+        }
+
+        stage('Canary Deployment') {
+            steps {
+                sh 'kubectl apply -f k8s/canary/'
             }
         }
     }
