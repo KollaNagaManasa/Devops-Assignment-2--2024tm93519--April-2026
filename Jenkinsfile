@@ -8,7 +8,7 @@ pipeline {
 
     stages {
 
-        // 🔹 1. Checkout Code
+        // 🔹 1. Checkout
         stage('Checkout') {
             steps {
                 checkout scm
@@ -25,18 +25,20 @@ pipeline {
             }
         }
 
-        // 🔹 3. Run Unit Tests
+        // 🔹 3. Run Unit Tests (FIXED)
         stage('Run Unit Tests') {
             steps {
                 sh '''
                 export PATH=$PATH:/var/lib/jenkins/.local/bin
+                export PYTHONPATH=$PYTHONPATH:$(pwd)
+
                 pip3 install --user pytest
                 pytest -q --junitxml=junit.xml
                 '''
             }
         }
 
-        // 🔹 4. SonarQube Analysis
+        // 🔹 4. SonarQube (optional)
         stage('SonarQube Analysis') {
             steps {
                 withSonarQubeEnv('sonarqube-server') {
@@ -53,14 +55,14 @@ pipeline {
             }
         }
 
-        // 🔹 5. Build Docker Image
+        // 🔹 5. Build Docker
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        // 🔹 6. Push Docker Image
+        // 🔹 6. Push Docker
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -78,8 +80,8 @@ pipeline {
             }
         }
 
-        // 🔹 7. Apply Kubernetes Config
-        stage('Apply Kubernetes Config') {
+        // 🔹 7. Deploy to Kubernetes
+        stage('Deploy to k3s') {
             steps {
                 sh '''
                 export KUBECONFIG=/var/lib/jenkins/config
@@ -88,8 +90,8 @@ pipeline {
             }
         }
 
-        // 🔹 8. Rolling Deployment
-        stage('Deploy Rolling Update') {
+        // 🔹 8. Rolling Update
+        stage('Rolling Update') {
             steps {
                 sh '''
                 export KUBECONFIG=/var/lib/jenkins/config
@@ -97,16 +99,6 @@ pipeline {
                 aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest || true
 
                 kubectl rollout status deployment/aceest-fitness -n aceest
-                '''
-            }
-        }
-
-        // 🔹 9. Canary Deployment
-        stage('Canary Deployment') {
-            steps {
-                sh '''
-                export KUBECONFIG=/var/lib/jenkins/config
-                kubectl apply -f k8s/canary/
                 '''
             }
         }
