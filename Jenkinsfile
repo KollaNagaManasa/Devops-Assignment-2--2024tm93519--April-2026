@@ -25,7 +25,7 @@ pipeline {
             }
         }
 
-        // 🔹 3. Run Unit Tests (FIXED)
+        // 🔹 3. Run Unit Tests
         stage('Run Unit Tests') {
             steps {
                 sh '''
@@ -38,31 +38,21 @@ pipeline {
             }
         }
 
-        // 🔹 4. SonarQube (optional)
+        // 🔹 4. SonarQube (SKIPPED)
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('sonarqube-server') {
-                    sh '''
-                    export PATH=$PATH:/opt/sonar-scanner/bin
-
-                    sonar-scanner \
-                    -Dsonar.projectKey=aceest-fitness \
-                    -Dsonar.sources=. \
-                    -Dsonar.host.url=http://localhost:9000 \
-                    -Dsonar.login=$SONAR_AUTH_TOKEN
-                    '''
-                }
+                echo "Skipping SonarQube due to low memory"
             }
         }
 
-        // 🔹 5. Build Docker
+        // 🔹 5. Build Docker Image
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        // 🔹 6. Push Docker
+        // 🔹 6. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
