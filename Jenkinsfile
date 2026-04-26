@@ -5,6 +5,7 @@ pipeline {
         IMAGE_NAME = "kollanagamanasa/aceest-fitness"
         IMAGE_TAG = "${BUILD_NUMBER}"
         KUBECONFIG = "/var/lib/jenkins/.kube/config"
+        SONAR_HOST_URL = "https://sonarcloud.io"
     }
 
     stages {
@@ -34,17 +35,18 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+        stage('SonarCloud Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
                     export PATH=$PATH:/opt/sonar-scanner/bin
 
                     sonar-scanner \
-                      -Dsonar.projectKey=aceest-fitness \
+                      -Dsonar.projectKey=YOUR_PROJECT_KEY \
+                      -Dsonar.organization=YOUR_ORG \
                       -Dsonar.sources=. \
-                      -Dsonar.host.url=http://localhost:9000 \
-                      -Dsonar.login=$SONAR_TOKEN || true
+                      -Dsonar.host.url=$SONAR_HOST_URL \
+                      -Dsonar.login=$SONAR_TOKEN
                     '''
                 }
             }
@@ -52,9 +54,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build -t $IMAGE_NAME:$IMAGE_TAG .
-                '''
+                sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
             }
         }
 
@@ -75,21 +75,20 @@ pipeline {
 
         stage('Deploy Base') {
             steps {
-                sh '''
-                kubectl apply -f k8s/base/
-                '''
+                sh 'kubectl apply -f k8s/base/'
             }
         }
 
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
-                kubectl set image deployment/aceest-fitness aceest=$IMAGE_NAME:$IMAGE_TAG
+                kubectl set image deployment/aceest-fitness \
+                aceest=$IMAGE_NAME:$IMAGE_TAG -n aceest
 
                 sleep 20
 
-                kubectl rollout status deployment/aceest-fitness || \
-                kubectl rollout undo deployment/aceest-fitness
+                kubectl rollout status deployment/aceest-fitness -n aceest || \
+                kubectl rollout undo deployment/aceest-fitness -n aceest
                 '''
             }
         }
