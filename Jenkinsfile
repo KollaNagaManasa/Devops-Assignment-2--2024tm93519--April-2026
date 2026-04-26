@@ -4,18 +4,15 @@ pipeline {
     environment {
         IMAGE_NAME = "kollanagamanasa/aceest-fitness"
         IMAGE_TAG = "${BUILD_NUMBER}"
+        KUBE_CONFIG = "/var/lib/jenkins/config"
     }
 
     stages {
 
-        // 🔹 1. Checkout
         stage('Checkout') {
-            steps {
-                checkout scm
-            }
+            steps { checkout scm }
         }
 
-        // 🔹 2. Install Dependencies
         stage('Install Dependencies') {
             steps {
                 sh '''
@@ -25,34 +22,22 @@ pipeline {
             }
         }
 
-        // 🔹 3. Run Unit Tests
         stage('Run Unit Tests') {
             steps {
                 sh '''
                 export PATH=$PATH:/var/lib/jenkins/.local/bin
                 export PYTHONPATH=$PYTHONPATH:$(pwd)
-
-                pip3 install --user pytest
                 pytest -q --junitxml=junit.xml
                 '''
             }
         }
 
-        // 🔹 4. SonarQube (SKIPPED)
-        stage('SonarQube Analysis') {
-            steps {
-                echo "Skipping SonarQube due to low memory"
-            }
-        }
-
-        // 🔹 5. Build Docker Image
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        // 🔹 6. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -70,25 +55,75 @@ pipeline {
             }
         }
 
-        // 🔹 7. Deploy to Kubernetes
-        stage('Deploy to k3s') {
+        // 🔹 Apply base configs
+        stage('Apply Base') {
             steps {
                 sh '''
-                export KUBECONFIG=/var/lib/jenkins/config
+                export KUBECONFIG=${KUBE_CONFIG}
                 kubectl apply -f k8s/base/
                 '''
             }
         }
 
-        // 🔹 8. Rolling Update
-        stage('Rolling Update') {
+        // 🔹 Rolling update with rollback
+        stage('Rolling Update + Rollback') {
             steps {
                 sh '''
-                export KUBECONFIG=/var/lib/jenkins/config
-                kubectl set image deployment/aceest-fitness \
-                aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest || true
+                export KUBECONFIG=${KUBE_CONFIG}
 
-                kubectl rollout status deployment/aceest-fitness -n aceest
+                kubectl set image deployment/aceest-fitness \
+                aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest
+
+                if ! kubectl rollout status deployment/aceest-fitness -n aceest --timeout=60s; then
+                    echo "Rollback triggered"
+                    kubectl rollout undo deployment/aceest-fitness -n aceest
+                    exit 1
+                fi
+                '''
+            }
+        }
+
+        // 🔵🟢 Blue-Green
+        stage('Blue-Green Deploy') {
+            steps {
+                sh '''
+                export KUBECONFIG=${KUBE_CONFIG}
+
+                kubectl apply -f k8s/blue-green/
+
+                # switch traffic to green
+                kubectl patch svc aceest-service -n aceest \
+                -p '{"spec":{"selector":{"app":"aceest","version":"green"}}}'
+                '''
+            }
+        }
+
+        // 🐤 Canary
+        stage('Canary Deploy') {
+            steps {
+                sh '''
+                export KUBECONFIG=${KUBE_CONFIG}
+                kubectl apply -f k8s/canary/
+                '''
+            }
+        }
+
+        // 👻 Shadow
+        stage('Shadow Deploy') {
+            steps {
+                sh '''
+                export KUBECONFIG=${KUBE_CONFIG}
+                kubectl apply -f k8s/shadow/
+                '''
+            }
+        }
+
+        // 👥 A/B Testing (basic)
+        stage('A/B Deployment') {
+            steps {
+                sh '''
+                export KUBECONFIG=${KUBE_CONFIG}
+                kubectl apply -f k8s/ab-testing/
                 '''
             }
         }
@@ -97,6 +132,12 @@ pipeline {
     post {
         always {
             junit allowEmptyResults: true, testResults: '**/junit.xml'
+        }
+        success {
+            echo "All deployment strategies executed successfully"
+        }
+        failure {
+            echo "Pipeline failed - rollback handled"
         }
     }
 }
