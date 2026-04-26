@@ -4,7 +4,7 @@ pipeline {
     environment {
         IMAGE_NAME = "kollanagamanasa/aceest-fitness"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = "/etc/rancher/k3s/k3s.yaml"
+        KUBECONFIG = "/var/lib/jenkins/.kube/config"
     }
 
     stages {
@@ -52,7 +52,9 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
+                sh '''
+                docker build -t $IMAGE_NAME:$IMAGE_TAG .
+                '''
             }
         }
 
@@ -73,17 +75,21 @@ pipeline {
 
         stage('Deploy Base') {
             steps {
-                sh 'kubectl apply -f k8s/base/'
+                sh '''
+                kubectl apply -f k8s/base/
+                '''
             }
         }
 
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
-                kubectl set image deployment/aceest-deployment aceest=$IMAGE_NAME:$IMAGE_TAG
+                kubectl set image deployment/aceest-fitness aceest=$IMAGE_NAME:$IMAGE_TAG
+
                 sleep 20
-                kubectl rollout status deployment/aceest-deployment || \
-                kubectl rollout undo deployment/aceest-deployment
+
+                kubectl rollout status deployment/aceest-fitness || \
+                kubectl rollout undo deployment/aceest-fitness
                 '''
             }
         }
@@ -118,7 +124,7 @@ pipeline {
             junit 'junit.xml'
         }
         success {
-            echo "PIPELINE SUCCESSFULL"
+            echo "PIPELINE SUCCESSFUL"
         }
         failure {
             echo "PIPELINE FAILED"
