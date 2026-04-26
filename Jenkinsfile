@@ -38,14 +38,32 @@ pipeline {
             }
         }
 
-        // 4. Build Docker Image
+        // 4. SonarCloud Analysis
+        stage('SonarCloud Analysis') {
+            steps {
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    export PATH=$PATH:/opt/sonar-scanner/bin
+
+                    sonar-scanner \
+                    -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
+                    -Dsonar.organization=kollanagamanasa \
+                    -Dsonar.sources=. \
+                    -Dsonar.host.url=https://sonarcloud.io \
+                    -Dsonar.login=$SONAR_TOKEN
+                    '''
+                }
+            }
+        }
+
+        // 5. Build Docker Image
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        // 5. Push Docker Image
+        // 6. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -63,7 +81,7 @@ pipeline {
             }
         }
 
-        // 6. Apply Base Kubernetes
+        // 7. Apply Base Kubernetes
         stage('Deploy Base') {
             steps {
                 sh '''
@@ -73,7 +91,7 @@ pipeline {
             }
         }
 
-        // 7. Rolling Update + AUTO Rollback
+        // 8. Rolling Update + Rollback
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
@@ -94,7 +112,7 @@ pipeline {
             }
         }
 
-        // 8. Blue-Green Deployment
+        // 9. Blue-Green Deployment
         stage('Blue-Green Deploy') {
             steps {
                 sh '''
@@ -102,14 +120,13 @@ pipeline {
 
                 kubectl apply -f k8s/strategies/blue-green/
 
-                echo "Switching traffic to GREEN..."
                 kubectl patch svc aceest-service -n aceest \
                 -p '{"spec":{"selector":{"app":"aceest","version":"green"}}}'
                 '''
             }
         }
 
-        // 9. Canary Deployment
+        // 10. Canary Deployment
         stage('Canary Deploy') {
             steps {
                 sh '''
@@ -119,7 +136,7 @@ pipeline {
             }
         }
 
-        // 10. Shadow Deployment
+        // 11. Shadow Deployment
         stage('Shadow Deploy') {
             steps {
                 sh '''
@@ -129,7 +146,7 @@ pipeline {
             }
         }
 
-        // 11. A/B Testing Deployment
+        // 12. A/B Testing Deployment
         stage('A/B Deployment') {
             steps {
                 sh '''
@@ -145,10 +162,10 @@ pipeline {
             junit allowEmptyResults: true, testResults: '**/junit.xml'
         }
         success {
-            echo "Pipeline SUCCESS: All deployment strategies executed!"
+            echo "Pipeline SUCCESS: CI/CD + SonarCloud + All deployment strategies completed!"
         }
         failure {
-            echo "Pipeline FAILED: Rollback executed where needed"
+            echo "Pipeline FAILED: Check logs"
         }
     }
 }
