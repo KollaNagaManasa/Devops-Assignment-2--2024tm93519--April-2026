@@ -4,15 +4,19 @@ pipeline {
     environment {
         IMAGE_NAME = "kollanagamanasa/aceest-fitness"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBE_CONFIG = "/var/lib/jenkins/config"
+        KUBECONFIG = "/var/lib/jenkins/config"
     }
 
     stages {
 
+        // 1. Checkout
         stage('Checkout') {
-            steps { checkout scm }
+            steps {
+                checkout scm
+            }
         }
 
+        // 2. Install Dependencies
         stage('Install Dependencies') {
             steps {
                 sh '''
@@ -22,22 +26,26 @@ pipeline {
             }
         }
 
+        // 3. Run Unit Tests
         stage('Run Unit Tests') {
             steps {
                 sh '''
                 export PATH=$PATH:/var/lib/jenkins/.local/bin
                 export PYTHONPATH=$PYTHONPATH:$(pwd)
+
                 pytest -q --junitxml=junit.xml
                 '''
             }
         }
 
+        // 4. Build Docker Image
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
+        // 5. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -55,75 +63,78 @@ pipeline {
             }
         }
 
-        // Apply base configs
-        stage('Apply Base') {
+        // 6. Apply Base Kubernetes
+        stage('Deploy Base') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
+                export KUBECONFIG=${KUBECONFIG}
                 kubectl apply -f k8s/base/
                 '''
             }
         }
 
-        // Rolling update with rollback
+        // 7. Rolling Update + AUTO Rollback
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
+                export KUBECONFIG=${KUBECONFIG}
 
                 kubectl set image deployment/aceest-fitness \
                 aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest
 
                 if ! kubectl rollout status deployment/aceest-fitness -n aceest --timeout=60s; then
-                    echo "Rollback triggered"
+                    echo "Deployment failed! Rolling back..."
                     kubectl rollout undo deployment/aceest-fitness -n aceest
+                    kubectl rollout status deployment/aceest-fitness -n aceest
                     exit 1
                 fi
+
+                echo "Rolling update successful"
                 '''
             }
         }
 
-        // Blue-Green
+        // 8. Blue-Green Deployment
         stage('Blue-Green Deploy') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
+                export KUBECONFIG=${KUBECONFIG}
 
-                kubectl apply -f k8s/blue-green/
+                kubectl apply -f k8s/strategies/blue-green/
 
-                # switch traffic to green
+                echo "Switching traffic to GREEN..."
                 kubectl patch svc aceest-service -n aceest \
                 -p '{"spec":{"selector":{"app":"aceest","version":"green"}}}'
                 '''
             }
         }
 
-        // Canary
+        // 9. Canary Deployment
         stage('Canary Deploy') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
-                kubectl apply -f k8s/canary/
+                export KUBECONFIG=${KUBECONFIG}
+                kubectl apply -f k8s/strategies/canary/
                 '''
             }
         }
 
-        // Shadow
+        // 10. Shadow Deployment
         stage('Shadow Deploy') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
-                kubectl apply -f k8s/shadow/
+                export KUBECONFIG=${KUBECONFIG}
+                kubectl apply -f k8s/strategies/shadow/
                 '''
             }
         }
 
-        // A/B Testing (basic)
+        // 11. A/B Testing Deployment
         stage('A/B Deployment') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBE_CONFIG}
-                kubectl apply -f k8s/ab-testing/
+                export KUBECONFIG=${KUBECONFIG}
+                kubectl apply -f k8s/strategies/ab-testing/
                 '''
             }
         }
@@ -134,10 +145,10 @@ pipeline {
             junit allowEmptyResults: true, testResults: '**/junit.xml'
         }
         success {
-            echo "All deployment strategies executed successfully"
+            echo "Pipeline SUCCESS: All deployment strategies executed!"
         }
         failure {
-            echo "Pipeline failed - rollback handled"
+            echo "Pipeline FAILED: Rollback executed where needed"
         }
     }
 }
