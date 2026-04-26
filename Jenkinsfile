@@ -9,14 +9,14 @@ pipeline {
 
     stages {
 
-        // 1. Checkout
+        // 🔹 1. Checkout
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        // 2. Install Dependencies
+        // 🔹 2. Install Dependencies
         stage('Install Dependencies') {
             steps {
                 sh '''
@@ -26,7 +26,7 @@ pipeline {
             }
         }
 
-        // 3. Run Unit Tests
+        // 🔹 3. Run Unit Tests
         stage('Run Unit Tests') {
             steps {
                 sh '''
@@ -38,7 +38,7 @@ pipeline {
             }
         }
 
-        // 4. SonarCloud Analysis
+        // 🔹 4. SonarCloud Analysis (FIXED)
         stage('SonarCloud Analysis') {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
@@ -49,21 +49,23 @@ pipeline {
                     -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
                     -Dsonar.organization=kollanagamanasa \
                     -Dsonar.sources=. \
+                    -Dsonar.tests=tests \
+                    -Dsonar.exclusions=tests/** \
                     -Dsonar.host.url=https://sonarcloud.io \
-                    -Dsonar.login=$SONAR_TOKEN
+                    -Dsonar.token=$SONAR_TOKEN
                     '''
                 }
             }
         }
 
-        // 5. Build Docker Image
+        // 🔹 5. Build Docker Image
         stage('Build Docker Image') {
             steps {
                 sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
             }
         }
 
-        // 6. Push Docker Image
+        // 🔹 6. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -81,7 +83,7 @@ pipeline {
             }
         }
 
-        // 7. Apply Base Kubernetes
+        // 🔹 7. Apply Base Kubernetes
         stage('Deploy Base') {
             steps {
                 sh '''
@@ -91,7 +93,7 @@ pipeline {
             }
         }
 
-        // 8. Rolling Update + Rollback
+        // 🔹 8. Rolling Update + Rollback
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
@@ -101,18 +103,18 @@ pipeline {
                 aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest
 
                 if ! kubectl rollout status deployment/aceest-fitness -n aceest --timeout=60s; then
-                    echo "Deployment failed! Rolling back..."
+                    echo "❌ Deployment failed! Rolling back..."
                     kubectl rollout undo deployment/aceest-fitness -n aceest
                     kubectl rollout status deployment/aceest-fitness -n aceest
                     exit 1
                 fi
 
-                echo "Rolling update successful"
+                echo "✅ Rolling update successful"
                 '''
             }
         }
 
-        // 9. Blue-Green Deployment
+        // 🔵🟢 9. Blue-Green Deployment
         stage('Blue-Green Deploy') {
             steps {
                 sh '''
@@ -126,7 +128,7 @@ pipeline {
             }
         }
 
-        // 10. Canary Deployment
+        // 🐤 10. Canary Deployment
         stage('Canary Deploy') {
             steps {
                 sh '''
@@ -136,7 +138,7 @@ pipeline {
             }
         }
 
-        // 11. Shadow Deployment
+        // 👻 11. Shadow Deployment
         stage('Shadow Deploy') {
             steps {
                 sh '''
@@ -146,7 +148,7 @@ pipeline {
             }
         }
 
-        // 12. A/B Testing Deployment
+        // 👥 12. A/B Testing Deployment
         stage('A/B Deployment') {
             steps {
                 sh '''
@@ -162,10 +164,10 @@ pipeline {
             junit allowEmptyResults: true, testResults: '**/junit.xml'
         }
         success {
-            echo "Pipeline SUCCESS: CI/CD + SonarCloud + All deployment strategies completed!"
+            echo "🎉 Pipeline SUCCESS: CI/CD + SonarCloud + All deployment strategies completed!"
         }
         failure {
-            echo "Pipeline FAILED: Check logs"
+            echo "🚨 Pipeline FAILED: Check logs"
         }
     }
 }
