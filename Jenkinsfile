@@ -10,10 +10,9 @@ pipeline {
     stages {
 
         stage('Checkout') {
-    steps {
-        git branch: 'main', url: 'https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026'
-    }
-}
+            steps {
+                git branch: 'main', url: 'https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026'
+            }
         }
 
         stage('Install Dependencies') {
@@ -39,8 +38,6 @@ pipeline {
             steps {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     sh '''
-                    echo "Running SonarQube analysis..."
-
                     export PATH=$PATH:/opt/sonar-scanner/bin
 
                     sonar-scanner \
@@ -55,9 +52,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh '''
-                docker build -t $IMAGE_NAME:$IMAGE_TAG .
-                '''
+                sh 'docker build -t $IMAGE_NAME:$IMAGE_TAG .'
             }
         }
 
@@ -69,10 +64,7 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                    echo "Logging into DockerHub..."
                     echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin
-
-                    echo "Pushing image..."
                     docker push $IMAGE_NAME:$IMAGE_TAG
                     '''
                 }
@@ -81,9 +73,7 @@ pipeline {
 
         stage('Deploy Base') {
             steps {
-                sh '''
-                kubectl apply -f k8s/base/
-                '''
+                sh 'kubectl apply -f k8s/base/'
             }
         }
 
@@ -91,9 +81,7 @@ pipeline {
             steps {
                 sh '''
                 kubectl set image deployment/aceest-deployment aceest=$IMAGE_NAME:$IMAGE_TAG
-
                 sleep 20
-
                 kubectl rollout status deployment/aceest-deployment || \
                 kubectl rollout undo deployment/aceest-deployment
                 '''
@@ -130,10 +118,10 @@ pipeline {
             junit 'junit.xml'
         }
         success {
-            echo "PIPELINE SUCCESSFUL"
+            echo "PIPELINE SUCCESSFULL"
         }
         failure {
-            echo "PIPELINE FAILED — Check logs"
+            echo "PIPELINE FAILED"
         }
     }
 }
