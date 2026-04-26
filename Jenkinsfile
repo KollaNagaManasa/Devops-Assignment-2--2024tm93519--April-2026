@@ -4,19 +4,17 @@ pipeline {
     environment {
         IMAGE_NAME = "kollanagamanasa/aceest-fitness"
         IMAGE_TAG = "${BUILD_NUMBER}"
-        KUBECONFIG = "/var/lib/jenkins/config"
+        KUBECONFIG = "/etc/rancher/k3s/k3s.yaml"
     }
 
     stages {
 
-        // 1. Checkout
         stage('Checkout') {
             steps {
-                checkout scm
+                git 'https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026'
             }
         }
 
-        // 2. Install Dependencies
         stage('Install Dependencies') {
             steps {
                 sh '''
@@ -26,33 +24,42 @@ pipeline {
             }
         }
 
-        // 3. Run Unit Tests
         stage('Run Unit Tests') {
             steps {
                 sh '''
                 export PATH=$PATH:/var/lib/jenkins/.local/bin
-                export PYTHONPATH=$PYTHONPATH:$(pwd)
-
+                export PYTHONPATH=$(pwd)
                 pytest -q --junitxml=junit.xml
                 '''
             }
         }
 
-        // 4. SonarCloud Analysis (SKIPPED - LOW MEMORY)
-        stage('SonarCloud Analysis') {
+        stage('SonarQube Analysis') {
             steps {
-                echo "Skipping SonarCloud due to low-memory EC2 constraints"
+                withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+                    sh '''
+                    echo "Running SonarQube analysis..."
+
+                    export PATH=$PATH:/opt/sonar-scanner/bin
+
+                    sonar-scanner \
+                      -Dsonar.projectKey=aceest-fitness \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=http://localhost:9000 \
+                      -Dsonar.login=$SONAR_TOKEN || true
+                    '''
+                }
             }
         }
 
-        // 5. Build Docker Image
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .'
+                sh '''
+                docker build -t $IMAGE_NAME:$IMAGE_TAG .
+                '''
             }
         }
 
-        // 6. Push Docker Image
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -61,98 +68,71 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                    docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${IMAGE_NAME}:latest
-                    docker push ${IMAGE_NAME}:latest
+                    echo "Logging into DockerHub..."
+                    echo $DOCKER_PASS | docker login -u "$DOCKER_USER" --password-stdin
+
+                    echo "Pushing image..."
+                    docker push $IMAGE_NAME:$IMAGE_TAG
                     '''
                 }
             }
         }
 
-        // 7. Deploy Base
         stage('Deploy Base') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBECONFIG}
                 kubectl apply -f k8s/base/
                 '''
             }
         }
 
-        // 8. Rolling Update + Rollback
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
-                export KUBECONFIG=${KUBECONFIG}
+                kubectl set image deployment/aceest-deployment aceest=$IMAGE_NAME:$IMAGE_TAG
 
-                kubectl set image deployment/aceest-fitness \
-                aceest-fitness=${IMAGE_NAME}:${IMAGE_TAG} -n aceest
+                sleep 20
 
-                if ! kubectl rollout status deployment/aceest-fitness -n aceest --timeout=60s; then
-                    echo "Deployment failed! Rolling back..."
-                    kubectl rollout undo deployment/aceest-fitness -n aceest
-                    exit 1
-                fi
-
-                echo "Rolling update successful"
+                kubectl rollout status deployment/aceest-deployment || \
+                kubectl rollout undo deployment/aceest-deployment
                 '''
             }
         }
 
-        // 9. Blue-Green Deployment
-        stage('Blue-Green Deploy') {
+        stage('Blue-Green Deployment') {
             steps {
-                sh '''
-                export KUBECONFIG=${KUBECONFIG}
-                kubectl apply -f k8s/strategies/blue-green/
-
-                kubectl patch svc aceest-service -n aceest \
-                -p '{"spec":{"selector":{"app":"aceest","version":"green"}}}'
-                '''
+                sh 'kubectl apply -f k8s/strategies/blue-green/'
             }
         }
 
-        // 10. Canary Deployment
-        stage('Canary Deploy') {
+        stage('Canary Deployment') {
             steps {
-                sh '''
-                export KUBECONFIG=${KUBECONFIG}
-                kubectl apply -f k8s/strategies/canary/
-                '''
+                sh 'kubectl apply -f k8s/strategies/canary/'
             }
         }
 
-        // 11. Shadow Deployment
-        stage('Shadow Deploy') {
+        stage('Shadow Deployment') {
             steps {
-                sh '''
-                export KUBECONFIG=${KUBECONFIG}
-                kubectl apply -f k8s/strategies/shadow/
-                '''
+                sh 'kubectl apply -f k8s/strategies/shadow/'
             }
         }
 
-        // 12. A/B Testing Deployment
         stage('A/B Deployment') {
             steps {
-                sh '''
-                export KUBECONFIG=${KUBECONFIG}
-                kubectl apply -f k8s/strategies/ab-testing/
-                '''
+                sh 'kubectl apply -f k8s/strategies/ab-testing/'
             }
         }
     }
 
     post {
         always {
-            junit allowEmptyResults: true, testResults: '**/junit.xml'
+            junit 'junit.xml'
         }
         success {
-            echo "SUCCESS: Full CI/CD pipeline completed!"
+            echo "PIPELINE SUCCESSFUL"
         }
         failure {
-            echo "FAILED: Check logs"
+            echo "PIPELINE FAILED — Check logs"
         }
     }
 }
