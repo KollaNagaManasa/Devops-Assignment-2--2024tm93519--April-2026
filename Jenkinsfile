@@ -25,7 +25,7 @@ pipeline {
             }
         }
 
-        stage('Run Unit Tests') {
+        stage('Run Tests') {
             steps {
                 sh '''
                 export PATH=$PATH:/var/lib/jenkins/.local/bin
@@ -42,10 +42,9 @@ pipeline {
                     export PATH=$PATH:/opt/sonar-scanner/bin
 
                     sonar-scanner \
-                      -Dsonar.projectKey=YOUR_PROJECT_KEY \
-                      -Dsonar.organization=YOUR_ORG \
-                      -Dsonar.sources=. \
-                      -Dsonar.host.url=$SONAR_HOST_URL \
+                      -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
+                      -Dsonar.organization=kollanagamanasa \
+                      -Dsonar.host.url=https://sonarcloud.io \
                       -Dsonar.login=$SONAR_TOKEN
                     '''
                 }
