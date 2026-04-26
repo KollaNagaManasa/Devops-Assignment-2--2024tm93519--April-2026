@@ -55,7 +55,7 @@ pipeline {
             }
         }
 
-        // 🔹 Apply base configs
+        // Apply base configs
         stage('Apply Base') {
             steps {
                 sh '''
@@ -65,7 +65,7 @@ pipeline {
             }
         }
 
-        // 🔹 Rolling update with rollback
+        // Rolling update with rollback
         stage('Rolling Update + Rollback') {
             steps {
                 sh '''
@@ -83,7 +83,7 @@ pipeline {
             }
         }
 
-        // 🔵🟢 Blue-Green
+        // Blue-Green
         stage('Blue-Green Deploy') {
             steps {
                 sh '''
@@ -98,7 +98,7 @@ pipeline {
             }
         }
 
-        // 🐤 Canary
+        // Canary
         stage('Canary Deploy') {
             steps {
                 sh '''
@@ -108,7 +108,7 @@ pipeline {
             }
         }
 
-        // 👻 Shadow
+        // Shadow
         stage('Shadow Deploy') {
             steps {
                 sh '''
@@ -118,7 +118,7 @@ pipeline {
             }
         }
 
-        // 👥 A/B Testing (basic)
+        // A/B Testing (basic)
         stage('A/B Deployment') {
             steps {
                 sh '''
