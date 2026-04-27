@@ -57,7 +57,7 @@ pipeline {
         sonar-scanner \
           -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
           -Dsonar.organization=kollanagamanasa \
-          -Dsonar.sources=app \
+          -Dsonar.sources=. \
           -Dsonar.host.url=https://sonarcloud.io \
           -Dsonar.login=7573e881b66613ced82f3b2a10f58b38101b5d70
         '''
