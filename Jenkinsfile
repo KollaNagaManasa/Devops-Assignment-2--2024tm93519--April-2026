@@ -51,16 +51,20 @@ pipeline {
         // SonarQube
         stage('SonarQube Analysis') {
     steps {
-        sh '''
-        . venv/bin/activate
+        withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+            sh '''
+            . venv/bin/activate
 
-        sonar-scanner \
-          -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
-          -Dsonar.organization=kollanagamanasa \
-          -Dsonar.sources=. \
-          -Dsonar.host.url=https://sonarcloud.io \
-          -Dsonar.login=7573e881b66613ced82f3b2a10f58b38101b5d70
-        '''
+            sonar-scanner \
+              -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
+              -Dsonar.organization=kollanagamanasa \
+              -Dsonar.sources=. \
+              -Dsonar.tests=tests \
+              -Dsonar.exclusions=tests/** \
+              -Dsonar.host.url=https://sonarcloud.io \
+              -Dsonar.token=7573e881b66613ced82f3b2a10f58b38101b5d70
+            '''
+        }
     }
 }
 
