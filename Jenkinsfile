@@ -22,7 +22,7 @@ pipeline {
         // CI STRATEGY
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'YOUR_GITHUB_REPO_URL'
+                git branch: 'main', url: 'https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026'
             }
         }
 
