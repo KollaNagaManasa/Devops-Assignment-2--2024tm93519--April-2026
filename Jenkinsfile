@@ -50,24 +50,19 @@ pipeline {
 
         // SonarQube
         stage('SonarQube Analysis') {
-            steps {
-                sh '''
-                . venv/bin/activate
+    steps {
+        sh '''
+        . venv/bin/activate
 
-                sonar-scanner \
-                  -Dsonar.projectKey=aceest-fitness \
-                  -Dsonar.projectName="ACEest Fitness & Gym" \
-                  -Dsonar.sources=app \
-                  -Dsonar.tests=tests \
-                  -Dsonar.python.version=3.9 \
-                  -Dsonar.exclusions=**/__pycache__/**,**/*.pyc,**/*.log,**/venv/**,**/node_modules/** \
-                  -Dsonar.coverage.exclusions=** \
-                  -Dsonar.sourceEncoding=UTF-8 \
-                  -Dsonar.host.url=http://YOUR_SONAR_HOST:9000 \
-                  -Dsonar.login=YOUR_SONAR_TOKEN
-                '''
-            }
-        }
+        sonar-scanner \
+          -Dsonar.projectKey=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026 \
+          -Dsonar.organization=kollanagamanasa \
+          -Dsonar.sources=app \
+          -Dsonar.host.url=https://sonarcloud.io \
+          -Dsonar.login=7573e881b66613ced82f3b2a10f58b38101b5d70
+        '''
+    }
+}
 
         // Docker Build
         stage('Build Docker Image') {
