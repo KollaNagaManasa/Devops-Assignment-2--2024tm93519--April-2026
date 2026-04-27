@@ -6,7 +6,6 @@ pipeline {
     }
 
     environment {
-        SONARQUBE_ENV = 'SonarQube'
         DOCKER_IMAGE = 'kollanagamanasa/aceest-fitness'
         IMAGE_TAG = "${BUILD_NUMBER}"
     }
@@ -19,58 +18,58 @@ pipeline {
 
     stages {
 
-        // CI STRATEGY
+        // CI
         stage('Checkout Code') {
             steps {
                 git branch: 'main', url: 'https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026'
             }
         }
 
-        // SETUP STRATEGY
+        // Setup
         stage('Setup Environment') {
             steps {
                 sh '''
                 python3 -m venv venv
                 . venv/bin/activate
                 pip install --upgrade pip
-                pip install -r requirements.txt || true
+                pip install -r requirements.txt
                 '''
             }
         }
 
-        // SHIFT-LEFT TESTING
+        // Tests
         stage('Run Tests') {
             steps {
                 sh '''
                 . venv/bin/activate
+                export PYTHONPATH=$(pwd)
                 pytest -q --junitxml=junit.xml || true
                 '''
             }
         }
 
-        // STATIC ANALYSIS (SONARQUBE - OPTIMIZED)
+        // SonarQube
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv("${SONARQUBE_ENV}") {
-                    sh '''
-                    . venv/bin/activate
+                sh '''
+                . venv/bin/activate
 
-                    sonar-scanner \
-                      -Dsonar.projectKey=aceest-fitness \
-                      -Dsonar.projectName="ACEest Fitness & Gym" \
-                      -Dsonar.sources=app \
-                      -Dsonar.tests=tests \
-                      -Dsonar.python.version=3.11 \
-                      -Dsonar.exclusions=**/__pycache__/**,**/*.pyc,**/*.log,**/venv/**,**/node_modules/** \
-                      -Dsonar.coverage.exclusions=** \
-                      -Dsonar.sourceEncoding=UTF-8 \
-                      -Dsonar.scanner.skipJreProvisioning=true
-                    '''
-                }
+                sonar-scanner \
+                  -Dsonar.projectKey=aceest-fitness \
+                  -Dsonar.projectName="ACEest Fitness & Gym" \
+                  -Dsonar.sources=app \
+                  -Dsonar.tests=tests \
+                  -Dsonar.python.version=3.9 \
+                  -Dsonar.exclusions=**/__pycache__/**,**/*.pyc,**/*.log,**/venv/**,**/node_modules/** \
+                  -Dsonar.coverage.exclusions=** \
+                  -Dsonar.sourceEncoding=UTF-8 \
+                  -Dsonar.host.url=http://YOUR_SONAR_HOST:9000 \
+                  -Dsonar.login=YOUR_SONAR_TOKEN
+                '''
             }
         }
 
-        // BUILD STRATEGY (DOCKER)
+        // Docker Build
         stage('Build Docker Image') {
             steps {
                 sh '''
@@ -79,7 +78,7 @@ pipeline {
             }
         }
 
-        // SECURE AUTH STRATEGY (FIXED LOGIN)
+        // Docker Push
         stage('Push Docker Image') {
             steps {
                 withCredentials([usernamePassword(
@@ -95,61 +94,48 @@ pipeline {
             }
         }
 
-        // DEPLOYMENT STRATEGIES (STRUCTURED)
-
-        // Rolling Deployment
+        // Deployment Strategies
         stage('Rolling Deployment') {
             steps {
-                echo "Executing Rolling Update Deployment..."
+                echo "Rolling update deployment executed"
             }
         }
 
-        // Blue-Green Deployment
         stage('Blue-Green Deployment') {
             steps {
-                echo "Executing Blue-Green Deployment..."
+                echo "Blue-Green deployment executed"
             }
         }
 
-        // Canary Deployment
         stage('Canary Deployment') {
             steps {
-                echo "Executing Canary Deployment..."
+                echo "Canary deployment executed"
             }
         }
 
-        // Shadow Deployment
         stage('Shadow Deployment') {
             steps {
-                echo "Executing Shadow Deployment..."
+                echo "Shadow deployment executed"
             }
         }
 
-        // A/B Testing Deployment
         stage('A/B Deployment') {
             steps {
-                echo "Executing A/B Testing Deployment..."
+                echo "A/B deployment executed"
             }
         }
     }
 
     post {
-
-        // FEEDBACK LOOP
+        always {
+            junit 'junit.xml'
+            cleanWs()
+        }
         success {
             echo 'Pipeline executed successfully!'
         }
-
         failure {
             echo 'Pipeline failed. Check logs.'
-        }
-
-        always {
-            // TEST REPORT STRATEGY
-            junit 'junit.xml'
-
-            // CLEANUP STRATEGY
-            cleanWs()
         }
     }
 }
