@@ -1,127 +1,263 @@
-# ACEest Fitness & Gym - Assignment 2 (DevOps CI/CD)
+# ACEest Fitness & Gym – DevOps CI/CD Pipeline (Assignment 2)
 
-This repository completes the CI/CD assignment requirements for ACEest Fitness & Gym.
+## Overview
 
-## Included Deliverables
-- Uploaded ACEest version files from Assignment 1 (`Aceestver*.py`)
-- Flask service entry file: `ACEest_Fitness.py`
-- Unit tests: `tests/test_aceest.py`
-- Jenkins pipeline: `Jenkinsfile`
-- Docker build file: `Dockerfile`
-- SonarQube scanner config: `sonar-project.properties`
-- Kubernetes base manifests and strategy manifests under `k8s/`
-- Deployment and rollback scripts under `scripts/`
+This project implements a complete **end-to-end CI/CD pipeline** for the ACEest Fitness & Gym application.
 
-## Run Locally
-```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python ACEest_Fitness.py
+It demonstrates:
+
+* Automated build and test pipeline
+* Static code analysis using SonarCloud
+* Docker-based containerization
+* Kubernetes (K3s) deployment on AWS EC2
+* Multiple deployment strategies
+
+---
+
+# Architecture
+
+```
+GitHub → Jenkins → Pytest → SonarCloud → Docker → DockerHub → Kubernetes (K3s) → NodePort → Browser
 ```
 
-## Run Tests
-```powershell
+---
+
+# Infrastructure (AWS EC2)
+
+The entire pipeline is deployed on an EC2 instance.
+
+## Instance Details
+
+* OS: Amazon Linux 2023
+* Instance Type: t2.small
+
+## Installed Tools
+
+* Java (for Jenkins)
+* Jenkins
+* Docker
+* K3s (Lightweight Kubernetes)
+* Sonar Scanner
+
+---
+
+# Security Group Configuration
+
+| Port        | Purpose             |
+| ----------- | ------------------- |
+| 22          | SSH                 |
+| 8080        | Jenkins UI          |
+| 30000–32767 | Kubernetes NodePort |
+| 80          | Optional web access |
+
+---
+
+# Project Structure
+
+```
+.
+├── ACEest_Fitness.py
+├── ACEest_Fitness_v1.py ... v5.py
+├── tests/
+│   └── test_aceest.py
+├── Dockerfile
+├── Jenkinsfile
+├── sonar-project.properties
+├── k8s/
+│   ├── base/
+│   │   ├── namespace.yaml
+│   │   ├── deployment.yaml
+│   │   └── service.yaml
+│   └── strategies/
+│       ├── rolling/
+│       ├── blue-green/
+│       ├── canary/
+│       ├── shadow/
+│       └── ab-testing/
+├── scripts/
+│   └── rollback.ps1
+└── requirements.txt
+```
+
+---
+
+# CI/CD Pipeline (Jenkins)
+
+Pipeline stages:
+
+1. Checkout Code (GitHub)
+2. Setup Python Environment
+3. Run Tests (pytest)
+4. SonarCloud Analysis
+5. Build Docker Image
+6. Push to DockerHub
+7. Deploy to Kubernetes
+
+---
+
+# Testing
+
+Run locally:
+
+```bash
 pytest -q --junitxml=junit.xml
 ```
 
-## Docker
-```powershell
-docker build -t your-dockerhub-username/aceest-fitness:v1 .
-docker push your-dockerhub-username/aceest-fitness:v1
-docker tag your-dockerhub-username/aceest-fitness:v1 your-dockerhub-username/aceest-fitness:latest
-docker push your-dockerhub-username/aceest-fitness:latest
+---
+
+# Code Quality
+
+Integrated with SonarCloud for:
+
+* Bugs detection
+* Code smells
+* Security vulnerabilities
+
+---
+
+# Docker
+
+## Build Image
+
+```bash
+docker build -t kollanagamanasa/aceest-fitness:v1 .
 ```
 
-## Kubernetes Base Deploy
-```powershell
-kubectl apply -f k8s/base/namespace.yaml
-kubectl apply -f k8s/base/deployment.yaml
-kubectl apply -f k8s/base/service.yaml
-kubectl get all -n aceest
+## Push Image
+
+```bash
+docker push kollanagamanasa/aceest-fitness:v1
+docker tag kollanagamanasa/aceest-fitness:v1 kollanagamanasa/aceest-fitness:latest
+docker push kollanagamanasa/aceest-fitness:latest
 ```
 
-## Deployment Strategies
-- Rolling Update: `k8s/strategies/rolling-update/deployment-rolling.yaml`
-- Blue-Green: `k8s/strategies/blue-green/deployment-blue-green.yaml`
-- Canary: `k8s/strategies/canary/deployment-canary.yaml`
-- Shadow: `k8s/strategies/shadow/deployment-shadow.yaml`
-- A/B Testing: `k8s/strategies/ab-testing/deployment-ab-testing.yaml`
+---
 
-## Rollback
-```powershell
+# Kubernetes Deployment (K3s)
+
+## Base Deployment
+
+```bash
+kubectl apply -f k8s/base/
+```
+
+## Verify
+
+```bash
+kubectl get pods -n aceest
+kubectl get svc -n aceest
+```
+
+---
+
+# Application Access
+
+Application is exposed using NodePort:
+
+```
+http://<EC2-PUBLIC-IP>:<NodePort>
+```
+
+### Example:
+
+```
+http://98.130.128.175:31272
+```
+
+---
+
+# Deployment Strategies
+
+Implemented using Kubernetes manifests:
+
+* Rolling Deployment
+* Blue-Green Deployment
+* Canary Deployment
+* Shadow Deployment
+* A/B Testing
+
+Note: Strategies are applied **one at a time** due to resource constraints.
+
+---
+
+# Rollback
+
+```bash
 .\scripts\rollback.ps1 -Namespace aceest -Deployment aceest-fitness
 ```
 
-## Important Setup
-- Replace `your-dockerhub-username` in `Jenkinsfile` and all `k8s` manifests.
-- Create Jenkins credentials:
-  - `dockerhub-creds`
-  - SonarQube server configured as `sonarqube-server`
-# ACEest Fitness & Gym - DevOps CI/CD Assignment 2
+---
 
-This project demonstrates an end-to-end DevOps CI/CD workflow for a Flask application.
+# Jenkins Credentials
 
-## Tech Stack
-- Git and GitHub
-- Jenkins pipeline
-- Pytest for unit tests
-- SonarQube for static code analysis
-- Docker containerization
-- Kubernetes (Minikube or cloud)
+Configured in Jenkins:
 
-## Project Structure
-- `ACEest_Fitness.py` - main application entry point
-- `ACEest_Fitness_v1.py` to `ACEest_Fitness_v5.py` - versioned app entry points
-- `app/` - Flask app package
-- `tests/` - Pytest test suite
-- `Dockerfile` - container build definition
-- `Jenkinsfile` - CI/CD pipeline
-- `k8s/` - Kubernetes manifests and deployment strategy examples
-- `sonar-project.properties` - SonarQube scanner configuration
+| ID                 | Purpose                   |
+| ------------------ | ------------------------- |
+| docker-credentials | DockerHub login           |
+| sonar-token        | SonarCloud authentication |
 
-## Local Run
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python ACEest_Fitness.py
-```
+---
 
-Run a specific version:
-```bash
-python ACEest_Fitness_v1.py
-python ACEest_Fitness_v2.py
-python ACEest_Fitness_v3.py
-python ACEest_Fitness_v4.py
-python ACEest_Fitness_v5.py
-```
+# Challenges Faced
 
-## Run Tests
-```bash
-pytest -q --junitxml=junit.xml
-```
+* Low disk space on EC2 → caused pod eviction
+* SonarQube server heavy → replaced with SonarCloud
+* Kubernetes TLS errors → fixed kubeconfig
+* External access issues → fixed security group
 
-## Docker Build
-```bash
-docker build -t your-dockerhub-username/aceest-fitness:v1 .
-docker push your-dockerhub-username/aceest-fitness:v1
-```
+---
 
-## Kubernetes Base Deployment
-```bash
-kubectl apply -f k8s/base/namespace.yaml
-kubectl apply -f k8s/base/deployment.yaml
-kubectl apply -f k8s/base/service.yaml
-kubectl get all -n aceest
-```
+# Solutions
 
-## Deployment Strategy Manifests
-- Blue-Green: `k8s/strategies/blue-green/deployment-blue-green.yaml`
-- Canary: `k8s/strategies/canary/deployment-canary.yaml`
-- Shadow: `k8s/strategies/shadow/deployment-shadow.yaml`
-- A/B Testing: `k8s/strategies/ab-testing/deployment-ab-testing.yaml`
-- Rolling Update: `k8s/strategies/rolling-update/deployment-rolling.yaml`
+* Cleaned `/var/lib` and Jenkins builds
+* Used lightweight K3s
+* Configured NodePort correctly
+* Allowed port range in AWS
 
-## Notes
-Replace `your-dockerhub-username` in manifests and Jenkinsfile before running the pipeline.
+---
+
+# Results
+
+* CI/CD pipeline executed successfully
+* Docker image built and pushed
+* Kubernetes deployment successful
+* Application accessible via browser
+
+---
+
+# Project Links
+
+## GitHub Repository
+
+https://github.com/KollaNagaManasa/Devops-Assignment-2--2024tm93519--April-2026
+
+## Jenkins Dashboard
+
+http://98.130.128.175:8080
+
+## Jenkins Pipeline Job
+
+http://98.130.128.175:8080/job/Aceest-Fitness-Devops-Pipeline/
+
+## SonarCloud Dashboard
+
+https://sonarcloud.io/project/overview?id=kollanagamanasa_Devops-Assignment-2--2024tm93519--April-2026
+
+## DockerHub Repository
+
+https://hub.docker.com/r/kollanagamanasa/aceest-fitness
+
+## Live Application
+
+http://98.130.128.175:31272
+
+---
+
+# Conclusion
+
+This project successfully demonstrates a **real-world DevOps pipeline** integrating CI/CD, testing, code quality analysis, containerization, and Kubernetes deployment.
+
+It highlights practical problem-solving in constrained environments and follows industry best practices.
+
+---
